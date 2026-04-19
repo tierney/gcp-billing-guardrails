@@ -5,38 +5,36 @@ description: Allows an agent to run gcloud CLI commands on the user's machine. U
 
 # GCloud Executor Skill
 
-You are authorized to run Google Cloud CLI commands on this machine. The `gcloud` binary is not in the default PATH for background shell environments, so you MUST use the full path or the wrapper script for every command.
+You are authorized to run Google Cloud CLI commands on this machine.
 
 ## How to Execute Commands
 
-Always invoke gcloud using the full absolute path:
+Always use the portable wrapper script at the root of this repository. It automatically discovers the `gcloud` binary on any machine, regardless of where the SDK is installed or who the user is:
+
 ```
-/Users/tierney/google-cloud-sdk/bin/gcloud [command]
+./gcloud-agent.sh [command]
 ```
 
-Or use the convenience wrapper in the guardrails repo:
-```
-/Users/tierney/repos/gcp-billing-guardrails/gcloud-agent.sh [command]
-```
+If you need an absolute path to the wrapper, resolve it relative to the repository root (e.g. find the repo with `git rev-parse --show-toplevel`).
 
 ## Approved Read-Only Commands
 These are safe to run without asking for user confirmation:
 
 - **Check billing status:**
   ```
-  /Users/tierney/google-cloud-sdk/bin/gcloud billing projects describe $PROJECT_ID
+  ./gcloud-agent.sh billing projects describe $PROJECT_ID
   ```
 - **List budgets:**
   ```
-  /Users/tierney/google-cloud-sdk/bin/gcloud billing budgets list --billing-account=$ACCOUNT_ID
+  ./gcloud-agent.sh billing budgets list --billing-account=$ACCOUNT_ID
   ```
 - **Read Cloud Function logs:**
   ```
-  /Users/tierney/google-cloud-sdk/bin/gcloud functions logs read stop-billing-fn --region=us-central1 --limit=10
+  ./gcloud-agent.sh functions logs read stop-billing-fn --region=us-central1 --limit=10
   ```
 - **List Cloud Functions:**
   ```
-  /Users/tierney/google-cloud-sdk/bin/gcloud functions list --region=us-central1
+  ./gcloud-agent.sh functions list --region=us-central1
   ```
 
 ## Write Commands (Require Explicit User Approval)
@@ -44,13 +42,19 @@ These commands mutate state and MUST be confirmed by the user before running:
 
 - **Re-link billing account:**
   ```
-  /Users/tierney/google-cloud-sdk/bin/gcloud billing projects link $PROJECT_ID --billing-account=$ACCOUNT_ID
+  ./gcloud-agent.sh billing projects link $PROJECT_ID --billing-account=$ACCOUNT_ID
   ```
 - **Publish a Pub/Sub test message:**
   ```
-  /Users/tierney/google-cloud-sdk/bin/gcloud pubsub topics publish budget-alerts --message='...'
+  ./gcloud-agent.sh pubsub topics publish budget-alerts --message='...'
   ```
 - **Deploy a Cloud Function:**
   ```
-  /Users/tierney/google-cloud-sdk/bin/gcloud functions deploy ...
+  ./gcloud-agent.sh functions deploy ...
   ```
+
+## Loading Project Variables
+Before running any command, source the project `.env` to populate `$PROJECT_ID`, `$ACCOUNT_ID`, and `$BUDGET_AMOUNT`:
+```
+source .env
+```
