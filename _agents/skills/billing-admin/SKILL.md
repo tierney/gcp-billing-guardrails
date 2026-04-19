@@ -1,31 +1,21 @@
 ---
 name: billing-admin
-description: Manages GCP billing configurations, verifies budgets, and re-links disabled billing accounts. Use when you need to recover a project's billing state or audit budget Pub/Sub rules.
+description: Manages GCP billing configurations, verifies budgets, and re-links disabled billing accounts. Use when you need to recover a project's billing state or audit budget Pub/Sub notification rules.
 ---
 
 # Billing Administrator Skill
 
-You are responsible for managing the Google Cloud billing lifecycle and ensuring the project's financial guardrails are functioning and correctly attached.
+## Quick Reference
 
-## Core Capabilities
+Always `source .env` first to populate `$PROJECT_ID`, `$ACCOUNT_ID`, `$BUDGET_AMOUNT`.
 
-### 1. Verify Budget Configuration
-To check if the project has the correct budget and that it is linked to the `budget-alerts` Pub/Sub topic, run:
-```zsh
-gcloud billing budgets list --billing-account=$ACCOUNT_ID
-```
-Ensure that `notificationsRule.pubsubTopic` exists and points to the correct topic.
+## Decision Tree
 
-### 2. Verify Project Billing Status
-To check if the kill switch has tripped or if the project is currently active, run:
-```zsh
-gcloud billing projects describe $PROJECT_ID
-```
-If `billingEnabled` is `true`, the project is online. If `false`, the kill switch has tripped.
+- **Is billing currently enabled?** → `./gcloud-agent.sh billing projects describe $PROJECT_ID`
+- **Is the budget linked to the correct Pub/Sub topic?** → See `references/verify-setup.md`
+- **Re-link a disabled project?** → Run `scripts/repair-billing.sh` (requires user approval)
+- **Update budget amount?** → See `references/manage-budget.md`
 
-### 3. Repair / Re-link Billing Account
-If the kill switch has tripped and the human requests the project be brought back online, you must re-link the billing account:
-```zsh
-gcloud billing projects link $PROJECT_ID --billing-account=$ACCOUNT_ID
-```
-*Warning: If the project's current spend is still above the budget hard cap, re-linking will cause a loop where it gets immediately disabled again. Advise the human to increase the budget limit before re-linking.*
+## Safety Rules
+- Always verify billing status before and after any repair operation.
+- Warn the user if re-linking while spend is still above the budget cap — it will immediately re-trigger the kill switch.

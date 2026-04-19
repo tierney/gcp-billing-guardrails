@@ -1,43 +1,22 @@
 ---
 name: qa-testing
-description: Tests the GCP billing kill switch by publishing Pub/Sub messages and reading Cloud Function logs to verify soft limit warnings and hard limit disconnections. Use when you need to verify the kill switch architecture is functioning.
+description: Tests the GCP billing kill switch by publishing Pub/Sub messages and reading Cloud Function logs. Use when you need to verify soft limits are correctly ignored and hard limits trigger a billing disconnection.
 ---
 
 # QA Tester Skill
 
-You are responsible for validating that the automated Google Cloud billing kill switch is functioning correctly, ignoring safe thresholds, and successfully executing on critical thresholds.
+## Quick Reference
 
-## Core Capabilities
+Always `source .env` first to populate `$PROJECT_ID`, `$ACCOUNT_ID`, `$BUDGET_AMOUNT`.
 
-### 1. Test Soft Limits (Safe thresholds)
-Publish a payload simulating a cost *below* the budget limit to ensure the function ignores it. 
-First, determine the `BUDGET_AMOUNT` from the project's `.env` file, and calculate 50% and 90% of it. Then use those values in the `costAmount` and `budgetAmount` fields:
-```zsh
-gcloud pubsub topics publish budget-alerts --message='{"costAmount": [CALCULATED_50_PERCENT], "budgetAmount": [BUDGET_AMOUNT]}'
-```
-Then, verify the logs show the event was ignored:
-```zsh
-gcloud functions logs read stop-billing-fn --region=us-central1 --limit=10
-```
-Expected: `Budget threshold not yet reached. No action taken.`
+## Decision Tree
 
-### 2. Test Hard Limits (Kill Switch execution)
-Publish a payload simulating a cost *above* the budget limit.
-Calculate a value that is at least 100% of the `BUDGET_AMOUNT` and use it:
-```zsh
-gcloud pubsub topics publish budget-alerts --message='{"costAmount": [CALCULATED_101_PERCENT], "budgetAmount": [BUDGET_AMOUNT]}'
-```
-Then, verify the logs show the event was executed:
-```zsh
-gcloud functions logs read stop-billing-fn --region=us-central1 --limit=10
-```
-Expected: `Budget exceeded: 21/20. Disabling billing...` followed by a success message.
+- **Test soft limits (50%, 90%)?** → Run `scripts/test-soft-limit.sh` — no billing impact.
+- **Test hard limit (100%+)?** → Run `scripts/test-hard-limit.sh` — **billing will be disabled**, notify billing-admin to repair afterward.
+- **Check function ran correctly?** → `./gcloud-agent.sh functions logs read stop-billing-fn --region=us-central1 --limit=10`
+- **Confirm billing is disconnected?** → `./gcloud-agent.sh billing projects describe $PROJECT_ID`
+- **What do the log messages mean?** → See `references/expected-log-output.md`
 
-### 3. Verify Disconnection
-After a hard limit test, always verify the project is actually disconnected from billing:
-```zsh
-gcloud billing projects describe $PROJECT_ID
-```
-Expected: `billingEnabled: false`.
-
-*Important: Always inform the human or the `billing-admin` agent when you execute a Hard Limit test, as the project will need to be repaired/re-linked.*
+## Safety Rules
+- Always notify the `billing-admin` agent or the user after running a hard limit test so the project can be repaired.
+- Never run the hard limit test against a production project without explicit approval.
