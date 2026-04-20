@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "gcp-billing-guardrails"
+version = "0.2.0"
+description = "Client-side and GCP-level cost protection guardrails for AI APIs"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []   # guardrails package has no runtime deps beyond stdlib
+
+[project.optional-dependencies]
+dev = ["pytest>=9.0.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["guardrails*"]
+exclude = ["tests*"]
